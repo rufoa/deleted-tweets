@@ -7,6 +7,7 @@ this is a twitter bot that monitors specific twitter account(s) and tweets scree
 these are the debian package names, others distros may vary
 
 - wkhtmltopdf
+    - needs an X server - `xvfb-run` may be useful on headless servers
 - python-twython
 - python-dateutil
 - python-sqlite
@@ -26,7 +27,6 @@ these are the debian package names, others distros may vary
 
 - run `./watch.py` without any arguments
 - you'll probably want to use something like `runit` for process supervision
-
 - by default the sqlite database is called `tweets.db`
 - this can be overridden using the `DB` environmental variable
     - e.g. `DB=~/bot1.db ./watch.py init` and `DB=~/bot1.db ./watch.py`
