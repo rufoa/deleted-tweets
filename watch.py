@@ -122,11 +122,23 @@ with con:
 				print "@" + user['screen_name'] + " (user ID " + user['id_str'] + ") found"
 				follow_list.append(user['id_str'])
 			else:
-				print account + " not found, skipping"
+				print account + " not found, aborting"
+				exit(1)
 		follow_ids = ','.join(follow_list)
 
 		values = [('consumer_key', consumer_key), ('consumer_secret', consumer_secret), ('access_token', access_token), ('access_token_secret', access_token_secret), ('follow', follow_ids)]
 		cur.executemany('INSERT INTO settings(name, value) VALUES (?,?)', values)
+
+		for user_id in follow_list:
+			print "backfilling user ID " + user_id
+			tweets = twitter.get_user_timeline(user_id=user_id, count=200)
+			count = 1
+			for tweet in tweets:
+				if 'text' in tweet and tweet['user']['id_str'] == user_id:
+					tweet_json = json.dumps(tweet)
+					cur.execute('INSERT INTO tweets(id_str, json) VALUES (?,?)', (tweet['id_str'], tweet_json))
+					print str(count) + '/' + str(len(tweets))
+					count += 1
 
 	else:
 
