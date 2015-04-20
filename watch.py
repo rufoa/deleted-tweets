@@ -26,16 +26,20 @@ def nice_interval(count):
 def get_setting(name):
 	global cur
 	cur.execute("SELECT value FROM settings WHERE name = ?" , (name,))
-	return cur.fetchone()[0]
+	row = cur.fetchone()
+	if row is None:
+		return None
+	else:
+		return row[0]
 
 class MyStreamer(TwythonStreamer):
 	def on_success(self, data):
-		global cur, twitter, follow_ids
+		global cur, rest, follow_ids
 
 		if 'text' in data:
 			if data['user']['id_str'] in follow_ids:
 				data_json = json.dumps(data)
-				cur.execute('INSERT INTO tweets(id_str, json) VALUES (?,?)', (data['id_str'], data_json))
+				cur.execute('INSERT OR IGNORE INTO tweets(id_str, json) VALUES (?,?)', (data['id_str'], data_json))
 				print 'inserted ' + data['id_str']
 
 		elif 'delete' in data:
@@ -60,7 +64,7 @@ class MyStreamer(TwythonStreamer):
 					Twython.html_for_tweet(tweet),\
 					datetime.fromtimestamp(int(tweet['timestamp_ms']) / 1000).replace(tzinfo=dateutil.tz.tzutc()))
 				image = open(image_path, 'rb')
-				twitter.update_status_with_media(status=status, media=image)
+				rest.update_status_with_media(status=status, media=image)
 				image.close()
 				os.remove(image_path)
 
@@ -80,44 +84,77 @@ with con:
 		cur.execute('DROP TABLE IF EXISTS tweets')
 		cur.execute('CREATE TABLE tweets(id_str TEXT PRIMARY KEY, json TEXT)')
 
-		cur.execute('DROP TABLE IF EXISTS settings')
-		cur.execute('CREATE TABLE settings(name TEXT PRIMARY KEY, value TEXT)')
+		cur.execute('CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY, value TEXT)')
 
-		consumer_key = raw_input('Enter consumer key: ')
-		consumer_secret = raw_input('Enter consumer secret: ')
+		consumer_key_old = get_setting('consumer_key')
+		prompt = 'Enter consumer key'
+		if consumer_key_old:
+			prompt += ' [' + consumer_key_old + ']'
+		consumer_key = raw_input(prompt + ': ')
+		if consumer_key == '':
+			if consumer_key_old:
+				consumer_key = consumer_key_old
+			else:
+				print "No consumer key provided"
+				exit(1)
 
-		twitter = Twython(consumer_key, consumer_secret)
+		consumer_secret_old = get_setting('consumer_secret')
+		prompt = 'Enter consumer secret'
+		if consumer_secret_old:
+			prompt += ' [' + consumer_secret_old + ']'
+		consumer_secret = raw_input(prompt + ': ')
+		if consumer_secret == '':
+			if consumer_secret_old:
+				consumer_secret = consumer_secret_old
+			else:
+				print "No consumer secret provided"
+				exit(1)
+
+		rest = Twython(consumer_key, consumer_secret)
 
 		try:
-			auth = twitter.get_authentication_tokens()
+			auth = rest.get_authentication_tokens()
 		except TwythonAuthError:
 			print "Bad API keys"
 			exit(1)
 
-		print "\nGo to this URL and log in:\n" + auth['auth_url'] + "\n"
-		twitter = Twython(consumer_key, consumer_secret, auth['oauth_token'], auth['oauth_token_secret'])
-		pin = raw_input('Enter PIN code: ')
-		
-		try:
-			tokens = twitter.get_authorized_tokens(pin)
-		except TwythonAuthError:
-			print "Invalid or expired PIN"
-			exit(1)
+		access_token_old = get_setting('access_token')
+		access_token_secret_old = get_setting('access_token_secret')
 
-		access_token = tokens['oauth_token']
-		access_token_secret = tokens['oauth_token_secret']
+		if access_token_old is not None and access_token_secret_old is not None:
+			keep = raw_input('Use saved access token? [Y/n]: ')
+			keep = not (keep == 'n' or keep == 'N')
+		else:
+			keep = False
 
-		twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
+		if keep:
+			print "using old access tokens"
+			access_token = access_token_old
+			access_token_secret = access_token_secret_old
+		else:
+			print "\nGo to this URL and log in:\n" + auth['auth_url'] + "\n"
+			rest = Twython(consumer_key, consumer_secret, auth['oauth_token'], auth['oauth_token_secret'])
+			pin = raw_input('Enter PIN code: ')
+
+			try:
+				tokens = rest.get_authorized_tokens(pin)
+				access_token = tokens['oauth_token']
+				access_token_secret = tokens['oauth_token_secret']
+			except TwythonAuthError:
+				print "Invalid or expired PIN"
+				exit(1)
+
+		rest = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
 
 		follow = raw_input('List of twitter accounts to follow: ')
 		follow_list = []
 		for account in re.split('[\s,]+', follow):
 			if account.isdigit():
-				user = twitter.show_user(user_id=account)
+				user = rest.show_user(user_id=account)
 			else:
 				if account[0] == '@':
 					account = account[1:]
-				user = twitter.show_user(screen_name=account)
+				user = rest.show_user(screen_name=account)
 			if 'id_str' in user:
 				print "@" + user['screen_name'] + " (user ID " + user['id_str'] + ") found"
 				follow_list.append(user['id_str'])
@@ -127,18 +164,21 @@ with con:
 		follow_ids = ','.join(follow_list)
 
 		values = [('consumer_key', consumer_key), ('consumer_secret', consumer_secret), ('access_token', access_token), ('access_token_secret', access_token_secret), ('follow', follow_ids)]
-		cur.executemany('INSERT INTO settings(name, value) VALUES (?,?)', values)
+		cur.executemany('INSERT OR REPLACE INTO settings(name, value) VALUES (?,?)', values)
 
 		for user_id in follow_list:
 			print "backfilling user ID " + user_id
-			tweets = twitter.get_user_timeline(user_id=user_id, count=200)
+			tweets = rest.get_user_timeline(user_id=user_id, count=200)
 			count = 1
 			for tweet in tweets:
 				if 'text' in tweet and tweet['user']['id_str'] == user_id:
 					tweet_json = json.dumps(tweet)
-					cur.execute('INSERT INTO tweets(id_str, json) VALUES (?,?)', (tweet['id_str'], tweet_json))
-					print str(count) + '/' + str(len(tweets))
+					cur.execute('INSERT OR IGNORE INTO tweets(id_str, json) VALUES (?,?)', (tweet['id_str'], tweet_json))
+					print "\r" + str(count) + '/' + str(len(tweets)),
+					sys.stdout.flush()
 					count += 1
+
+		print "\nDone"
 
 	else:
 
@@ -151,6 +191,6 @@ with con:
 
 		print "Following user IDs: " + ', '.join(follow_ids)
 
-		twitter = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
-		stream = MyStreamer(consumer_key, consumer_secret, access_token, access_token_secret)
-		stream.statuses.filter(follow=','.join(follow_ids))
+		rest = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
+		streaming = MyStreamer(consumer_key, consumer_secret, access_token, access_token_secret)
+		streaming.statuses.filter(follow=','.join(follow_ids))
