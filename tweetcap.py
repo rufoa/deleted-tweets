@@ -1,11 +1,11 @@
 import tempfile, subprocess, re, cgi, os, dateutil.parser, dateutil.tz
 
-def tweetcap(tweet_name, tweet_handle, tweet_avatar, tweet_html, tweet_date):
+def tweetcap(template_path, tweet_name, tweet_handle, tweet_avatar, tweet_html, tweet_date):
 	tweet_name = cgi.escape(tweet_name)
 	tweet_handle = cgi.escape(tweet_handle)
 	tweet_date = tweet_date.astimezone(dateutil.tz.tzutc()).strftime('%-I:%M %p - %-d %b %Y')
 
-	with open('template.html', 'r') as template:
+	with open(template_path, 'r') as template:
 		html = template.read()
 
 	html = html\

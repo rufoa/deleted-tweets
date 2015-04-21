@@ -34,7 +34,7 @@ def get_setting(name):
 
 class MyStreamer(TwythonStreamer):
 	def on_success(self, data):
-		global cur, rest, follow_ids
+		global cur, rest, follow_ids, template_path
 
 		if 'text' in data:
 			if data['user']['id_str'] in follow_ids:
@@ -58,6 +58,7 @@ class MyStreamer(TwythonStreamer):
 					for url in tweet['entities']['urls']:
 						status += ' ' + url['expanded_url']
 				image_path = tweetcap(\
+					template_path,\
 					tweet['user']['name'],\
 					tweet['user']['screen_name'],\
 					tweet['user']['profile_image_url'],\
@@ -191,6 +192,8 @@ with con:
 		follow_ids = get_setting('follow').split(',')
 
 		print "Following user IDs: " + ', '.join(follow_ids)
+
+		template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template.html')
 
 		rest = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
 		streaming = MyStreamer(consumer_key, consumer_secret, access_token, access_token_secret)
