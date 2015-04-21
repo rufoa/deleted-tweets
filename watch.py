@@ -81,10 +81,6 @@ with con:
 	cur = con.cursor()
 
 	if len(sys.argv) == 2 and sys.argv[1] == 'init':
-		cur.execute('DROP TABLE IF EXISTS tweets')
-		cur.execute('CREATE TABLE tweets(id_str TEXT PRIMARY KEY, json TEXT)')
-
-		cur.execute('CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY, value TEXT)')
 
 		consumer_key_old = get_setting('consumer_key')
 		prompt = 'Enter consumer key'
@@ -128,7 +124,6 @@ with con:
 			keep = False
 
 		if keep:
-			print "using old access tokens"
 			access_token = access_token_old
 			access_token_secret = access_token_secret_old
 		else:
@@ -163,11 +158,16 @@ with con:
 				exit(1)
 		follow_ids = ','.join(follow_list)
 
+		cur.execute('CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY, value TEXT)')
+
 		values = [('consumer_key', consumer_key), ('consumer_secret', consumer_secret), ('access_token', access_token), ('access_token_secret', access_token_secret), ('follow', follow_ids)]
 		cur.executemany('INSERT OR REPLACE INTO settings(name, value) VALUES (?,?)', values)
 
+		cur.execute('DROP TABLE IF EXISTS tweets')
+		cur.execute('CREATE TABLE tweets(id_str TEXT PRIMARY KEY, json TEXT)')
+
 		for user_id in follow_list:
-			print "backfilling user ID " + user_id
+			print "Backfilling user ID " + user_id
 			tweets = rest.get_user_timeline(user_id=user_id, count=200)
 			count = 1
 			for tweet in tweets:
@@ -177,6 +177,7 @@ with con:
 					print "\r" + str(count) + '/' + str(len(tweets)),
 					sys.stdout.flush()
 					count += 1
+			print "\n"
 
 		print "\nDone"
 
