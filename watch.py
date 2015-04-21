@@ -82,6 +82,8 @@ with con:
 
 	if len(sys.argv) == 2 and sys.argv[1] == 'init':
 
+		cur.execute('CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY, value TEXT)')
+
 		consumer_key_old = get_setting('consumer_key')
 		prompt = 'Enter consumer key'
 		if consumer_key_old:
@@ -158,8 +160,6 @@ with con:
 				exit(1)
 		follow_ids = ','.join(follow_list)
 
-		cur.execute('CREATE TABLE IF NOT EXISTS settings(name TEXT PRIMARY KEY, value TEXT)')
-
 		values = [('consumer_key', consumer_key), ('consumer_secret', consumer_secret), ('access_token', access_token), ('access_token_secret', access_token_secret), ('follow', follow_ids)]
 		cur.executemany('INSERT OR REPLACE INTO settings(name, value) VALUES (?,?)', values)
 
@@ -179,7 +179,7 @@ with con:
 					count += 1
 			print "\n"
 
-		print "\nDone"
+		print "Done"
 
 	else:
 
