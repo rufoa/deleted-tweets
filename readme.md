@@ -13,6 +13,7 @@ these are the debian package names, others distros may vary
 - python-sqlite
 - python-requests
 - python-requests-oauthlib
+- python-pystache
 
 ### initial setup
 
