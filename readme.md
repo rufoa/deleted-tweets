@@ -29,7 +29,11 @@ these are the debian package names, others distros may vary
 
 - run `./watch.py` without any arguments
 - you'll probably want to use something like `runit` for process supervision
-- by default the sqlite database is called `tweets.db`
-- this can be overridden using the `DB` environmental variable
-    - e.g. `DB=~/bot1.db ./watch.py init` and `DB=~/bot1.db ./watch.py`
-    - this allows you to run multiple accounts using one copy of this code
+
+## configuration
+
+- by default the sqlite database is called `tweets.db` and the template is called `template.html`, located in the same directory as the python script
+- these paths can be overridden using the `DB` and `TEMPLATE` environmental variables, respectively
+    - e.g. `DB=~/bot1.db ./watch.py init`
+    - and `DB=~/bot1.db TEMPLATE=~/bot1.html ./watch.py`
+- this allows you to run multiple accounts using one copy of this code

@@ -193,7 +193,8 @@ with con:
 
 		print "Following user IDs: " + ', '.join(follow_ids)
 
-		template_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template.html')
+		template_path_default = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'template.html')
+		template_path = os.getenv('TEMPLATE', template_path_default)
 
 		rest = Twython(consumer_key, consumer_secret, access_token, access_token_secret)
 		streaming = MyStreamer(consumer_key, consumer_secret, access_token, access_token_secret)
