@@ -14,6 +14,7 @@ these are the debian package names, others distros may vary
 - python-requests
 - python-requests-oauthlib
 - python-pystache
+- python-pil
 
 ### initial setup
 
