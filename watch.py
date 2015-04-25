@@ -36,7 +36,7 @@ class MyStreamer(TwythonStreamer):
 	def on_success(self, data):
 		global cur, rest, follow_ids, template_path
 
-		if 'text' in data:
+		if 'text' in data and 'retweeted_status' not in data:
 			if data['user']['id_str'] in follow_ids:
 				data_json = json.dumps(data)
 				cur.execute('INSERT OR IGNORE INTO tweets(id_str, json) VALUES (?,?)', (data['id_str'], data_json))
@@ -51,23 +51,24 @@ class MyStreamer(TwythonStreamer):
 				print deleted_status['id_str'] + ' not found in db'
 			else:
 				tweet = json.loads(row[0])
-				elapsed = (int(data['delete']['timestamp_ms']) - int(tweet['timestamp_ms'])) / 1000
-				status = 'deleted after ' + nice_interval(elapsed)
-				if len(tweet['entities']['urls']) > 0:
-					status += "\nlinks in original tweet:"
-					for url in tweet['entities']['urls']:
-						status += ' ' + url['expanded_url']
-				image_path = tweetcap(\
-					template_path,\
-					tweet['user']['name'],\
-					tweet['user']['screen_name'],\
-					tweet['user']['profile_image_url'],\
-					Twython.html_for_tweet(tweet),\
-					datetime.fromtimestamp(int(tweet['timestamp_ms']) / 1000).replace(tzinfo=dateutil.tz.tzutc()))
-				image = open(image_path, 'rb')
-				rest.update_status_with_media(status=status, media=image)
-				image.close()
-				os.remove(image_path)
+				if 'retweeted_status' not in tweet:
+					elapsed = (int(data['delete']['timestamp_ms']) - int(tweet['timestamp_ms'])) / 1000
+					status = 'deleted after ' + nice_interval(elapsed)
+					if len(tweet['entities']['urls']) > 0:
+						status += "\nlinks in original tweet:"
+						for url in tweet['entities']['urls']:
+							status += ' ' + url['expanded_url']
+					image_path = tweetcap(\
+						template_path,\
+						tweet['user']['name'],\
+						tweet['user']['screen_name'],\
+						tweet['user']['profile_image_url'],\
+						Twython.html_for_tweet(tweet),\
+						datetime.fromtimestamp(int(tweet['timestamp_ms']) / 1000).replace(tzinfo=dateutil.tz.tzutc()))
+					image = open(image_path, 'rb')
+					rest.update_status_with_media(status=status, media=image)
+					image.close()
+					os.remove(image_path)
 
 	def on_error(self, status_code, data):
 		if status_code == 420:
