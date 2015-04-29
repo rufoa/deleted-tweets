@@ -4,7 +4,7 @@ this is a twitter bot that monitors specific twitter account(s) and tweets scree
 
 ### dependencies
 
-these are the debian package names, others distros may vary
+these are the debian package names, other distros may vary
 
 - wkhtmltopdf
     - needs an X server - `xvfb-run` may be useful on headless servers
