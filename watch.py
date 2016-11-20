@@ -66,7 +66,8 @@ class MyStreamer(TwythonStreamer):
 						Twython.html_for_tweet(tweet),\
 						datetime.fromtimestamp(int(tweet['timestamp_ms']) / 1000).replace(tzinfo=dateutil.tz.tzutc()))
 					image = open(image_path, 'rb')
-					rest.update_status_with_media(status=status, media=image)
+					media_id = rest.upload_media(media=image)['media_id']
+					rest.update_status(status=status, media_ids=[media_id])
 					image.close()
 					os.remove(image_path)
 
